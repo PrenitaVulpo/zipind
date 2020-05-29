@@ -22,5 +22,5 @@ Last_update: 2020-06-29
 
 ---
 ### We recommend:  
-[mises.org](https://mises.org/) - Educate yourself about economic and political freedom
+[mises.org](https://mises.org/) - Educate yourself about economic and political freedom  
 [lbry.tv](http://lbry.tv/) - Store files and videos on blockchain ensuring free speech
