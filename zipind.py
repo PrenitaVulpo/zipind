@@ -22,26 +22,39 @@
 
 import os
 import subprocess
+from config_handler import handle_config_file
 
    
 def save_txt(str_content, str_name):
 
-    text_file = open(f"{str_name}.txt", "w")
+    # UTF-8 can't handle with the follow caracter in a folder name: 
+    text_file = open(f"{str_name}.txt", "w", encoding='utf_16')
     text_file.write(str_content)
     text_file.close()
+
+
+def ensure_folder_existence(folders_name):
+    
+    for folder_name in folders_name:
+        existence = os.path.isdir(f'./{folder_name}')
+        if existence is False:
+            os.mkdir(folder_name)
+    
+    
+def ensure_folders_existence():
+
+    folders_name = ['config', 'output']
+    ensure_folder_existence(folders_name)
 
         
 def create_rar_single_file(path_file_rar, path_origin, max_size=None):
 
-    # file_size_bytes = os.path.getsize(path_origin)
-    # file_size_mb = max_size / (1024**2)
     create_rar_file(path_file_rar, '"' + path_origin + '"', 
                     max_size=max_size)
         
     
 def create_rar_file_from_list_file(path_file_rar, list_files, max_size=None):
     
-    # file_size_mb = max_size / (1024**2)
     if len(list_files) > 1:
         stringa = '\n\n'.join(list_files)
         save_txt(stringa, 'files_to_zip')
@@ -62,7 +75,8 @@ def clean_cmd():
 def get_config_max_file_size(path_file_config):
 
     max_file_size = handle_config_file(path_file_config, 
-                                       'file_size').strip('\n').strip("'")
+                                       'file_size', parse=True)
+    max_file_size = max_file_size['file_size'][0]
     max_file_size = int(max_file_size)
     return max_file_size
 
@@ -70,8 +84,9 @@ def get_config_max_file_size(path_file_config):
 def get_config_dir_output(path_file_config):
 
     dir_output = handle_config_file(path_file_config, 
-                                    'dir_output').strip('\n').strip("'")
-    # TODO test dir
+                                    'dir_output', parse=True)
+    dir_output = dir_output['dir_output'][0]
+    
     if dir_output == '':
         return None
     else:
@@ -137,6 +152,43 @@ def define_mb_per_file(path_file_config, mb_per_file):
     
     return mb_per_file
     
+    
+def extension_to_ignore(file):
+
+    def get_ignore_extensions():
+
+        def get_file_ignore_extensions():
+            
+            folder_path = 'config'
+            file_name = 'ignore_extensions.txt'
+            file_path = os.path.join(folder_path, file_name)
+            file = open(file_path, "r", encoding='utf_8')
+            list_file = file.readlines()
+            file.close()
+            
+            return list_file 
+
+        list_extension = []
+        file = get_file_ignore_extensions()
+        for line in file:
+            line_lower = line.lower()
+            if line_lower.startswith('#'):
+                pass
+            else:
+                list_extension = tuple(line_lower.split(','))
+                break
+            
+        return list_extension
+
+    list_ignore_extensions = get_ignore_extensions()
+
+    if len(list_ignore_extensions) == 0:
+        return False
+    elif file.endswith(list_ignore_extensions):
+        return True
+    else:
+        return False
+
         
 def zipind(path_dir, mb_per_file=999, path_dir_output=None):
     """
@@ -171,6 +223,8 @@ def zipind(path_dir, mb_per_file=999, path_dir_output=None):
     do_create_rar_by_single = False    
     for root, dirs, files in os.walk(path_dir):
         for file in files:
+            if extension_to_ignore(file):
+                continue
             path_file = os.path.join(root, file)
             filebytes = os.path.getsize(path_file)
             
@@ -244,33 +298,7 @@ def zipind(path_dir, mb_per_file=999, path_dir_output=None):
         create_rar_file_from_list_file(rar_path_file_name, 
                                        list_path_files, mb_per_file)
                                          
-                                         
-def handle_config_file(path_file, variable, set_value=None):
 
-    config_file = open(path_file, 'r+')
-    content_lines = []
-
-    for line in config_file:
-            if f'{variable}=' in line:
-                line_components = line.split('=')
-                str_value = line_components[1]
-                
-                # update value or show value?
-                if set_value is not None:                
-                    updated_line = f"{variable}='{set_value}'\n"
-                    content_lines.append(updated_line)
-                else:
-                    config_file.close()
-                    return str_value
-            else:
-                content_lines.append(line)
-
-    config_file.seek(0)
-    config_file.truncate()
-    config_file.writelines(content_lines)
-    config_file.close()
-
-    
 def create_rar_file(path_file_rar, path_origin, max_size=None):
     
     if max_size is None:
@@ -290,6 +318,7 @@ def main():
     path_file_config = os.path.join('config', 'config.txt')
     mb_per_file = get_config_max_file_size(path_file_config)
     path_dir_output = get_config_dir_output(path_file_config)
+    ensure_folders_existence()
     
     while True:
         print('Zipind - From a folder, make a splited ZIP with INDependent ' + 
@@ -300,7 +329,7 @@ def main():
         path_dir_output = define_path_dir_output(path_file_config, 
                                                  path_dir_output)
         mb_per_file = define_mb_per_file(path_file_config, mb_per_file)
-        
+                
         # ::. Start the partition operation
         print(f'Compressing in parts with max size of {mb_per_file} MB...\n')
         zipind(path_dir_input, mb_per_file, path_dir_output)
@@ -319,3 +348,4 @@ def main():
         
 if __name__ == "__main__":
     main()
+    
