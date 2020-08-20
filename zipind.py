@@ -23,6 +23,7 @@
 import os
 import subprocess
 from config_handler import handle_config_file
+import unidecode
 
    
 def save_txt(str_content, str_name):
@@ -33,18 +34,22 @@ def save_txt(str_content, str_name):
     text_file.close()
 
 
-def ensure_folder_existence(folders_name):
+def ensure_folder_existence(folders_path):
     
-    for folder_name in folders_name:
-        existence = os.path.isdir(f'./{folder_name}')
+    for folder_path in folders_path:
+        existence = os.path.isdir(folder_path)
         if existence is False:
             os.mkdir(folder_name)
     
     
-def ensure_folders_existence():
+def ensure_folders_existence(folder_script_path):
 
     folders_name = ['config', 'output']
-    ensure_folder_existence(folders_name)
+    list_folders_name_abs = []
+    for folder_name in folders_name:
+        list_folders_name_abs.append(os.path.join(folder_script_path, 
+                                                  folder_name))
+    ensure_folder_existence(list_folders_name_abs)
 
         
 def create_rar_single_file(path_file_rar, path_origin, max_size=None):
@@ -159,9 +164,11 @@ def extension_to_ignore(file):
 
         def get_file_ignore_extensions():
             
+            #TODO fix
+            folder_script_path = get_folder_script_path()
             folder_path = 'config'
             file_name = 'ignore_extensions.txt'
-            file_path = os.path.join(folder_path, file_name)
+            file_path = os.path.join(folder_script_path, folder_path, file_name)
             file = open(file_path, "r", encoding='utf_8')
             list_file = file.readlines()
             file.close()
@@ -189,7 +196,28 @@ def extension_to_ignore(file):
     else:
         return False
 
+
+def get_folder_name_normalized(path_dir):
+
+    def normalize_string_to_link(string_actual):
+
+        string_new = unidecode.unidecode(string_actual)
         
+        for c in r"!@#$%^&*()[]{};:,./<>?\|`~-=_+":
+            string_new = string_new.translate({ord(c): "_"})
+            
+        string_new = string_new.replace(' ', '_')
+        string_new = string_new.replace('___', '_')
+        string_new = string_new.replace('__', '_')
+        
+        return string_new
+        
+    dir_name = os.path.basename(path_dir)
+    dir_name_normalize = normalize_string_to_link(dir_name)
+
+    return dir_name_normalize
+
+
 def zipind(path_dir, mb_per_file=999, path_dir_output=None):
     """
     Compresses a folder into independent parts.
@@ -210,20 +238,22 @@ def zipind(path_dir, mb_per_file=999, path_dir_output=None):
         rar_path_file_name_base = os.path.join(abs_path_dir_mother, 
                                                dir_name_base)
     else:
+        dir_name_base = get_folder_name_normalized(dir_name_base)
         rar_path_file_name_base = os.path.join(path_dir_output, dir_name_base)
-
+        
     zip_file_no = 1
     bytesprocessed = 0
     bytesperfile =  mb_per_file * (1024**2)
     
-    rar_path_file_name = f'{rar_path_file_name_base}_%02d.rar' % zip_file_no
+    rar_path_file_name = f'{rar_path_file_name_base}-%03d.rar' % zip_file_no
     list_path_files = []
 
     do_create_rar_by_list = False
     do_create_rar_by_single = False    
     for root, dirs, files in os.walk(path_dir):
         for file in files:
-            if extension_to_ignore(file):
+            file_lower = file.lower()
+            if extension_to_ignore(file_lower):
                 continue
             path_file = os.path.join(root, file)
             filebytes = os.path.getsize(path_file)
@@ -249,7 +279,7 @@ def zipind(path_dir, mb_per_file=999, path_dir_output=None):
                 # configure to next file rar
                 zip_file_no += 1
                 rar_path_file_name = \
-                    f'{rar_path_file_name_base}_%02d.rar' % zip_file_no
+                    f'{rar_path_file_name_base}-%03d.rar' % zip_file_no
                 do_create_rar_by_single = False                
 
                 # add focus file to another list
@@ -269,7 +299,7 @@ def zipind(path_dir, mb_per_file=999, path_dir_output=None):
                     # Configure to next file rar
                     zip_file_no += 1
                     rar_path_file_name = \
-                        f'{rar_path_file_name_base}_%02d.rar' % zip_file_no
+                        f'{rar_path_file_name_base}-%03d.rar' % zip_file_no
                     bytesprocessed = 0
                     list_path_files = []
                     
@@ -280,7 +310,7 @@ def zipind(path_dir, mb_per_file=999, path_dir_output=None):
                 # configure to next file rar
                 zip_file_no += 1
                 rar_path_file_name = \
-                    f'{rar_path_file_name_base}_%02d.rar' % zip_file_no
+                    f'{rar_path_file_name_base}-%03d.rar' % zip_file_no
                 do_create_rar_by_single = False
                 # skip to another file
                 continue
@@ -309,16 +339,27 @@ def create_rar_file(path_file_rar, path_origin, max_size=None):
     # -ep0 -> preserve folders structure
     # -ep1 -> ignore folders structure. copy only files
     subprocess.call(f'"%ProgramFiles%\\WinRAR\\Rar.exe" a -cfg- -ep0 -inul ' +
-                    f'-m5 -md4m -r -s -v{str_max_size}M "{path_file_rar}" ' +
+                    f'-m0 -md4m -mt5 -r -s -v{str_max_size}M "{path_file_rar}" ' +
                     f'{path_origin}', shell=True)
                     
 
+def get_folder_script_path():
+
+    folder_script_path_relative = os.path.dirname(__file__)
+    folder_script_path = os.path.realpath(folder_script_path_relative)
+    
+    return folder_script_path
+
+
 def main():
     
-    path_file_config = os.path.join('config', 'config.txt')
+    folder_script_path = get_folder_script_path()
+    
+    path_file_config = os.path.join(folder_script_path, 'config', 'config.txt')
     mb_per_file = get_config_max_file_size(path_file_config)
     path_dir_output = get_config_dir_output(path_file_config)
-    ensure_folders_existence()
+
+    ensure_folders_existence(folder_script_path)
     
     while True:
         print('Zipind - From a folder, make a splited ZIP with INDependent ' + 
