@@ -18,7 +18,7 @@ Requirement:
 Support:  
 -Compression only to .rar  
     
-Last_update: 2020-08-13  
+Last_update: 2020-08-20
 
 ---
 Do you wish to buy a coffee to say thanks?  
