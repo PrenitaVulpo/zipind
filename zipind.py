@@ -39,7 +39,7 @@ def ensure_folder_existence(folders_path):
     for folder_path in folders_path:
         existence = os.path.isdir(folder_path)
         if existence is False:
-            os.mkdir(folder_name)
+            os.mkdir(folder_path)
     
     
 def ensure_folders_existence(folder_script_path):
