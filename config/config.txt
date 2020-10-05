@@ -1,2 +1,2 @@
 dir_output='output'
-file_size='999'
+file_size='1024'
